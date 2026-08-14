@@ -36,20 +36,33 @@
 <div id="statusMsg"></div>
 
 <script>
-const tg = window.Telegram.WebApp;
-tg.ready();
-tg.expand();
+const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
+
+window.onerror = function(msg, url, line) {
+  const el = document.getElementById('statusMsg');
+  if (el) el.textContent = 'JS Error: ' + msg + ' (line ' + line + ')';
+};
+
+if (!tg) {
+  document.getElementById('vehicleLabel').textContent =
+    'Please open this from the button inside your Telegram group — not a direct link.';
+} else {
+  tg.ready();
+  tg.expand();
+}
 
 const urlParams = new URLSearchParams(window.location.search);
 
 // start_param comes from the t.me deep link (?startapp=cXXXXXX) — this is how
 // group-launched Mini Apps receive context, since web_app buttons don't work in groups.
-const startParam = tg.initDataUnsafe.start_param || '';
+const startParam = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || '';
 const chatId = startParam.startsWith('c') ? startParam.slice(1) : (urlParams.get('chatId') || '');
 
-document.getElementById('vehicleLabel').textContent = chatId
-  ? 'Uploading for this group\'s vehicle'
-  : 'Vehicle: unknown — open this via the reminder button in your vehicle group';
+if (tg) {
+  document.getElementById('vehicleLabel').textContent = chatId
+    ? 'Uploading for this group\'s vehicle'
+    : 'Vehicle: unknown — open this via the reminder button in your vehicle group';
+}
 
 const STEPS = ['Front', 'Left', 'Right', 'Back', 'Odometer'];
 const captured = {}; // step -> { base64, mimeType, lat, lng }
@@ -139,7 +152,7 @@ function submitAll() {
   const payload = {
     action: 'upload_photos',
     chatId,
-    initData: tg.initData,
+    initData: tg ? tg.initData : '',
     items: STEPS.map(s => captured[s])
   };
 
@@ -151,7 +164,7 @@ function submitAll() {
     .then(res => {
       if (res.ok) {
         statusMsg.textContent = 'Uploaded successfully ✓';
-        setTimeout(() => tg.close(), 1200);
+        setTimeout(() => { if (tg) tg.close(); }, 1200);
       } else {
         statusMsg.textContent = 'Upload failed: ' + (res.error || 'unknown error');
         submitBtn.disabled = false;
