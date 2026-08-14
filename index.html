@@ -41,11 +41,15 @@ tg.ready();
 tg.expand();
 
 const urlParams = new URLSearchParams(window.location.search);
-const vehicleNumber = urlParams.get('vehicle') || 'Unknown';
-document.getElementById('vehicleLabel').textContent = 'Vehicle: ' + vehicleNumber;
 
-// chatId: passed via startParam or query param when the bot builds the web_app URL
-const chatId = urlParams.get('chatId') || (tg.initDataUnsafe.chat ? tg.initDataUnsafe.chat.id : '');
+// start_param comes from the t.me deep link (?startapp=cXXXXXX) — this is how
+// group-launched Mini Apps receive context, since web_app buttons don't work in groups.
+const startParam = tg.initDataUnsafe.start_param || '';
+const chatId = startParam.startsWith('c') ? startParam.slice(1) : (urlParams.get('chatId') || '');
+
+document.getElementById('vehicleLabel').textContent = chatId
+  ? 'Uploading for this group\'s vehicle'
+  : 'Vehicle: unknown — open this via the reminder button in your vehicle group';
 
 const STEPS = ['Front', 'Left', 'Right', 'Back', 'Odometer'];
 const captured = {}; // step -> { base64, mimeType, lat, lng }
@@ -134,7 +138,6 @@ function submitAll() {
 
   const payload = {
     action: 'upload_photos',
-    vehicleNumber,
     chatId,
     initData: tg.initData,
     items: STEPS.map(s => captured[s])
